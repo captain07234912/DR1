@@ -1,8 +1,8 @@
 import struct
 from LibreriaGL import *
 from ModelObj import *
-from glEsfera import *
-
+from Sphere import *
+import numpy as np
 
 from numpy import matrix, cos, sin, tan
 """
@@ -15,23 +15,17 @@ Fill a polygon
 """
 
 
-
+BLACK = color(0,0,0)
 class Render(object):
     def __init__(self, width, height):
         self.colorPintar = Blanco
-        self.Fondo = Fondo
+        self.Fondo = BLACK
         self.glCreateWindow(width, height)
         # ancho y largo de la imagen
-        self.luz = (0, 0, 1)
-        self.active_texture = None
-        self.active_texture2 = None
-
-        self.active_shader = None
-        self.createViewMatrix()
-        self.createProjectionMatrix()
-        self.fov=60
+        self.camPosition = (0, 0, 0)
+        self.fov = 60
         self.scene =[]
-        self.camPosition = (0,0,0)
+
 
 
         # matriz de la cmaara igual que la del obj
@@ -80,6 +74,7 @@ class Render(object):
         self.width = width
         self.height = height
         self.glClear()
+
         #tamani exacto de la ventana
         self.glViewport(0, 0, width, height)
 
@@ -127,14 +122,14 @@ class Render(object):
         except:
             pass
 
-    def glVertex_coord(self, x, y, color=None):
+    def glVertex_coord(self, x, y, _color=None):
         if x < self.CoorxViewport or x >= self.CoorxViewport + self.ViewportWidth or y < self.CooryViewport or y >= self.CooryViewport + self.ViewportHEight:
             return
 
         if x >= self.width or x < 0 or y >= self.height or y < 0:
             return
         try:
-            self.pixels[y][x] = color or color(self.colorPintar)
+            self.pixels[y][x] = _color or  self.colorPintar
         except:
             pass
 
@@ -582,35 +577,39 @@ class Render(object):
 
         archivo.close()
 
-
-    def rtxrender(self):
-
+    def rtRender(self):
+        #pixel por pixel
         for y in range(self.height):
             for x in range(self.width):
 
-                rtPx = 2 * ((x + 0.5) / self.width) - 1
-                rtPy = 2 * ((y + 0.5) / self.height) - 1
+                #  NDC (-1 a 1)
+                Px = 2 * ( (x+0.5) / self.width) - 1
+                Py = 2 * ( (y+0.5) / self.height) - 1
 
                 # fov
-                # funcion de antes a usar
-                # valor pi en Libreria GL
-                t = tan((self.fov * valorpi/ 180) / 2)
+                t = tan( (self.fov * valorpi / 180) / 2 )
                 r = t * self.width / self.height
-                rtPx *= r
-                rtPy *= t
+                Px *= r
+                Py *= t
 
-                Pz = -1
-                direccion = [rtPx, rtPy, Pz]
-                direccion = normal(direccion)
+                #z siempre viendo enfrente
+                direction = [Px, Py, -1]
+                direction = normal(direction)
                 material = None
-
                 for obj in self.scene:
-                    intersect = obj.ray_inter(self.camPosition, direccion)
-                    if intersect is not None:
-                        if intersect.distance < self.zBuffer[y][x]:
-                            self.zBuffer[y][x] = intersect.distance
-                            material = obj.material
+                    intersect = obj.ray_intersect(self.camPosition,direction)
 
+                    if  intersect is not None:
+                        if intersect.distance < self.zbuffer[y][x]:
+                            self.zbuffer[y][x] = intersect.distance
+                            material = obj.material
                 if material is not None:
-                    # gl vertex coord funcion nueva mas arriba
-                    self.glVertex_coord(x, y, material.diffuse)
+                            self.glVertex_coord(x,y, material.diffuse)
+
+
+
+
+
+               # self.pixels[y][x] = color(max(min((Px+1)/ 2, 1),0) ,max(min((Py+1)/2,1),0),1)
+
+
